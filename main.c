@@ -1,5 +1,5 @@
 #include <stdio.h>
-//#include <stdlib.h>
+// #include <stdlib.h>
 #include <math.h>
 
 #define MMAX 25
@@ -65,6 +65,41 @@ double mid_intg(double (*integrand_ptr)(double), double start, double end, long 
     return I;
 }
 
+double mid_ballint_3D(long N){
+    // 2D integration for ball
+    double x,y,d,I;
+
+    // end and start are 1 and -1 for each
+    d = 2./N; // dx and dy
+
+    I=0.;
+    for(long i=0; i<N; i++){
+        for(long j=0; j<N; j++){
+            x = -1.+i*d+0.5*d;
+            y = -1.+j*d+0.5*d;
+            if(x*x + y*y < 1.){
+                I += sqrt(1. - x*x - y*y);
+            }
+        }
+    }
+    I=I*d*d;
+    return I;
+}
+
+void doball(){
+    double I,I_exact;
+    long newMAX = 13;
+    double err[newMAX];
+    // n=3 ball
+    I_exact = 2*3.14159265358979/3.;
+    printf("I_exact %f\n", I_exact);
+    for(int M=1; M<newMAX+1; M++){
+        I = mid_ballint_3D(MYexp2(M));
+        err[M-1] = fabs(I-I_exact)/I_exact;
+    }
+    doubleArrToFile(err, newMAX, "data/3-ball-error.data");
+}
+
 int main(){
     double I,I_exact;
     double err[MMAX];
@@ -118,5 +153,7 @@ int main(){
     }
     doubleArrToFile(err, MMAX, "data/circ-mid-error.data");
 
+
+    doball();
     return 0;
 }
