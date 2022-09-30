@@ -1,8 +1,20 @@
 #include <stdio.h>
 // #include <stdlib.h>
 #include <math.h>
+#include <sys/random.h>
 
 #define MMAX 25
+
+double rand(){
+    int r;
+    unsigned int max=4294967295;
+    unsigned int tmp;
+    r=getrandom(&tmp, sizeof(unsigned int), GRND_NONBLOCK);
+    if(r!=4){
+        printf("random returned something other than 4: %d\n",r);
+    }
+    return (double)tmp/max;
+}
 
 double mon6(double x){
     return x*x*x*x*x*x;
@@ -65,8 +77,21 @@ double mid_intg(double (*integrand_ptr)(double), double start, double end, long 
     return I;
 }
 
+double simp_intg(double (*integrand_ptr)(double), double start, double end, long N){
+    // only works for even N
+    double I=0;
+    double dx = (end-start)/N;
+
+    I = (integrand_ptr(start)+integrand_ptr(end));
+    for(long i=1; i<N; i++){
+        I += ( ((i%2)+1)*2. )*integrand_ptr(start+i*dx);
+    }
+    I=I*dx/3;
+    return I;
+}
+
 double mid_ballint_3D(long N){
-    // 2D integration for ball
+    // 2D integration for 3D ball
     double x,y,d,I;
 
     // end and start are 1 and -1 for each
@@ -86,6 +111,22 @@ double mid_ballint_3D(long N){
     return I;
 }
 
+double mc_ballint_3D(long N){
+    // 2D integration for 3D ball
+    double I,x,y;
+
+    I=0.;
+    for(long i=0; i<N*N; i++){
+        x = 2*rand() - 1.; // random between -1 and 1
+        y = 2*rand() - 1.;
+        if(x*x + y*y < 1.){
+            I += sqrt(1. - x*x - y*y);
+        }
+    }
+    I=4.*I/(N*N);
+    return I;
+}
+
 void doball(){
     double I,I_exact;
     long newMAX = 13;
@@ -93,11 +134,18 @@ void doball(){
     // n=3 ball
     I_exact = 2*3.14159265358979/3.;
     printf("I_exact %f\n", I_exact);
+
     for(int M=1; M<newMAX+1; M++){
         I = mid_ballint_3D(MYexp2(M));
         err[M-1] = fabs(I-I_exact)/I_exact;
     }
-    doubleArrToFile(err, newMAX, "data/3-ball-error.data");
+    doubleArrToFile(err, newMAX, "data/3-ball-mid-error.data");
+
+    for(int M=1; M<newMAX+1; M++){
+        I = mc_ballint_3D(MYexp2(M));
+        err[M-1] = fabs(I-I_exact)/I_exact;
+    }
+    doubleArrToFile(err, newMAX, "data/3-ball-mc-error.data");
 }
 
 int main(){
@@ -127,6 +175,11 @@ int main(){
         err[M-1] = fabs(I-I_exact)/I_exact;
     }
     doubleArrToFile(err, MMAX, "data/mon6-mid-error.data");
+    for(int M=1; M<MMAX+1; M++){
+        I = simp_intg(&mon6,0.,1.,MYexp2(M));
+        err[M-1] = fabs(I-I_exact)/I_exact;
+    }
+    doubleArrToFile(err, MMAX, "data/mon6-simp-error.data");
 
     // f(x)=sqrt(1-x^2)
     I_exact = 3.14159265358979/4.;
@@ -152,7 +205,11 @@ int main(){
         err[M-1] = fabs(I-I_exact)/I_exact;
     }
     doubleArrToFile(err, MMAX, "data/circ-mid-error.data");
-
+    for(int M=1; M<MMAX+1; M++){
+        I = simp_intg(&circ,0.,1.,MYexp2(M));
+        err[M-1] = fabs(I-I_exact)/I_exact;
+    }
+    doubleArrToFile(err, MMAX, "data/circ-simp-error.data");
 
     doball();
     return 0;
